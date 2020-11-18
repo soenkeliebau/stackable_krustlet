@@ -14,7 +14,7 @@ use crate::repository::package::Package;
 use crate::error::StackableError;
 use kubelet::container::Container;
 use std::convert::TryFrom;
-use log::{debug, info, error};
+use log::{debug, info, warn, error};
 use crate::repository::find_repository;
 use crate::states::download_package_backoff::DownloadingBackoff;
 
@@ -49,12 +49,23 @@ impl State<PodState> for Downloading {
                 info!("Looking for package: {} in known repositories", &package);
                 let repo = find_repository(pod_state.client.clone(), package, None).await;
                 match repo {
-                    Ok(Some(repo)) => {
+                    Ok(Some(mut repo)) => {
                         // We found a repository providing the package, proceed with download
                         // The repository has already downloaded its metadata it this time, as that
                         // was used to check whether it provides the package
                         info!("Starting download of package {} from repository {}", &package, &repo);
-                        //repo.download_package()
+                        let parcel_directory = pod_state.parcel_directory.clone();
+                        let download_result = repo.download_package(package, parcel_directory.clone()).await;
+                        match download_result {
+                            Ok(()) => {
+                                info!("Succesfully downloaded package {} to {:?}", package, parcel_directory.clone());
+                                return Transition::next(self, Installing);
+                            },
+                            Err(e) => {
+                                warn!("Download of package {} failed: {}", package, e);
+                                return Transition::next(self, DownloadingBackoff { package: package.clone() })
+                            }
+                        }
                     },
                     Ok(None) => {
                         // No repository was found that provides this package

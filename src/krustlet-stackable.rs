@@ -6,6 +6,7 @@ use std::sync::Arc;
 use stackable_provider::StackableProvider;
 use kube::config::KubeConfigOptions;
 use kube::config::Config as KubeConfig;
+use std::path::PathBuf;
 
 #[tokio::main(threaded_scheduler)]
 async fn main() -> anyhow::Result<()> {
@@ -21,7 +22,8 @@ async fn main() -> anyhow::Result<()> {
         .await
         .expect("Failed to create Kubernetes Client!");
 
-    let provider = StackableProvider::new(kube::Client::new(kubeconfig.clone()))
+    let parcel_directory = PathBuf::from("/home/sliebau/IdeaProjects/krustlet/parcels");
+    let provider = StackableProvider::new(kube::Client::new(kubeconfig.clone()), parcel_directory)
         .await
         .expect("Error initializing provider.");
 

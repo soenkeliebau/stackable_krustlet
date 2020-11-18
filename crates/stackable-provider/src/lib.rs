@@ -12,9 +12,11 @@ use crate::error::StackableError;
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition;
 use crate::error::StackableError::CrdMissing;
 use log::{debug, info, error};
+use std::path::PathBuf;
 
 pub struct StackableProvider {
     client: Client,
+    parcel_directory: PathBuf,
 
 }
 
@@ -27,15 +29,17 @@ mod error;
 
 pub struct PodState {
     client: Client,
+    parcel_directory: PathBuf,
     package_download_backoff_strategy: ExponentialBackoffStrategy,
 }
 
 impl StackableProvider {
 
 
-    pub async fn new(client: Client) -> Result<Self, StackableError> {
+    pub async fn new(client: Client, parcel_directory: PathBuf) -> Result<Self, StackableError> {
         let provider = StackableProvider {
-            client
+            client,
+            parcel_directory
         };
         let missing_crds = provider.check_crds().await;
         if missing_crds.is_empty() {
@@ -91,8 +95,10 @@ impl Provider for StackableProvider {
     }
 
     async fn initialize_pod_state(&self, pod: &Pod) -> anyhow::Result<Self::PodState> {
+        let parcel_directory = self.parcel_directory.clone();
         Ok(PodState {
             client: self.client.clone(),
+            parcel_directory,
             package_download_backoff_strategy: ExponentialBackoffStrategy::default()
         })
     }

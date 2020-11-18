@@ -87,12 +87,15 @@ impl StackableRepoProvider {
         })
     }
 
-    pub async fn download_package(&mut self, package: Package, target_path: PathBuf) -> Result<(), StackableError> {
+    pub async fn download_package(&mut self, package: &Package, target_path: PathBuf) -> Result<(), StackableError> {
         if self.content.is_none() {
             let _content = self.get_repo_metadata();
         }
 
-        let package = self.get_package(package).unwrap();
+        return Ok(());
+        // TODO: continue implementation
+
+        let package = self.get_package(package.clone()).unwrap();
         let download_link = Url::parse(&package.link).expect("unable to create download link");
         let mut response = reqwest::get(download_link).await.expect("request failed");
 
