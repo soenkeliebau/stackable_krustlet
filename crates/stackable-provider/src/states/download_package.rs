@@ -16,9 +16,10 @@ use kubelet::container::Container;
 use std::convert::TryFrom;
 use log::{debug, info, error};
 use crate::repository::find_repository;
+use crate::states::download_package_backoff::DownloadingBackoff;
 
 #[derive(Default, Debug, TransitionTo)]
-#[transition_to(Installing, SetupFailed)]
+#[transition_to(Installing, DownloadingBackoff)]
 pub struct Downloading;
 
 impl Downloading {
@@ -59,13 +60,13 @@ impl State<PodState> for Downloading {
                         // No repository was found that provides this package
                         let message = format!("Cannot find package {} in any repository, aborting ..", &package);
                         error!("{}", &message);
-                        return Transition::next(self, SetupFailed {message } );
+                        return Transition::next(self, DownloadingBackoff { package: package.clone() } );
                     },
                     Err(e) => {
                         // An error occurred when looking for a repository providing this package
                         let message = format!("Error occurred trying to find package {}: {}", &package, e);
                         error!("{}", &message);
-                        return Transition::next(self, SetupFailed {message} );
+                        return Transition::next(self, DownloadingBackoff { package: package.clone() } );
 
                     },
                 }

@@ -27,6 +27,7 @@ mod error;
 
 pub struct PodState {
     client: Client,
+    package_download_backoff_strategy: ExponentialBackoffStrategy,
 }
 
 impl StackableProvider {
@@ -91,7 +92,8 @@ impl Provider for StackableProvider {
 
     async fn initialize_pod_state(&self, pod: &Pod) -> anyhow::Result<Self::PodState> {
         Ok(PodState {
-            client: self.client.clone()
+            client: self.client.clone(),
+            package_download_backoff_strategy: ExponentialBackoffStrategy::default()
         })
     }
 
