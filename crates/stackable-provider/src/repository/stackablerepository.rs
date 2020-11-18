@@ -116,7 +116,7 @@ impl StackableRepoProvider {
         metadata_url
             .path_segments_mut()
             .expect("")
-            .push("metadata2.json");
+            .push("metadata.json");
 
         debug!("Retrieving repository metadata from {}", metadata_url);
 
