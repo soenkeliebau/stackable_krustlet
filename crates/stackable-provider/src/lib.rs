@@ -18,7 +18,7 @@ pub struct StackableProvider {
 
 }
 
-pub const CRDS: &'static [&'static str] = &["repository.repositories.stable.stackable.de"];
+pub const CRDS: &'static [&'static str] = &["repositories.stable.stackable.de"];
 
 
 mod states;
@@ -41,7 +41,7 @@ impl StackableProvider {
             debug!("All required CRDS present!");
             return Ok(provider);
         } else {
-            debug!("Missing required CDRS")
+            debug!("Missing required CDRS");
             return Err(CrdMissing {missing_crds});
         }
     }
