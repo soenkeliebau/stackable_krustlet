@@ -75,6 +75,9 @@ pub async fn create<P: 'static + Provider + Sync + Send>(
     match retry!(node_client.get(&config.node_name).await, times: 4, break_on: &Error::Api(ErrorResponse { code: 404, .. }))
     {
         Ok(_) => {
+            // TODO: This doesn't update information like taints that the provider
+            // may add to the node in its node fn
+            // Should we compare the existing object with what we would create here?
             debug!("Node already exists, skipping node creation");
             return;
         }

@@ -104,6 +104,7 @@ async fn bootstrap_auth<K: AsRef<Path>>(
         let mut got_cert = false;
         let start = std::time::Instant::now();
         while let Some(event) = watcher.try_next().await? {
+            println!("Waiting for csr {} to be approved", config.node_name);
             let status = match event {
                 Event::Applied(m) => m.status.unwrap(),
                 Event::Restarted(mut certs) => {

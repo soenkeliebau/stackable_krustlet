@@ -126,9 +126,9 @@ impl kubelet::state::AsyncDrop for PodState {
 
 #[async_trait::async_trait]
 impl Provider for WasiProvider {
+    type PodState = PodState;
     type InitialState = Registered;
     type TerminatedState = Terminated;
-    type PodState = PodState;
 
     const ARCH: &'static str = TARGET_WASM32_WASI;
 
