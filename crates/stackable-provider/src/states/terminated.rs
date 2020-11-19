@@ -22,6 +22,6 @@ impl State<PodState> for Terminated {
         _pod_state: &mut PodState,
         _pod: &Pod,
     ) -> anyhow::Result<serde_json::Value> {
-        make_status(Phase::Pending, &self.message)
+        make_status(Phase::Succeeded, &self.message)
     }
 }

@@ -1,5 +1,6 @@
 use thiserror::Error;
 use k8s_openapi::url;
+use crate::repository::package::Package;
 
 #[derive(Error, Debug)]
 pub enum StackableError {
@@ -19,4 +20,8 @@ pub enum StackableError {
     Kube(#[from] kube::Error),
     #[error("A required CRD has not been registered: {missing_crds:?}")]
     CrdMissing{missing_crds: Vec<String>},
+    #[error("Package {package} not found in repository")]
+    PackageNotFound{package: Package},
+    #[error("{msg}")]
+    RuntimeError{msg: String}
 }

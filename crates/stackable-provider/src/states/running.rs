@@ -4,20 +4,45 @@ use kubelet::state::prelude::*;
 use crate::PodState;
 use crate::states::failed::Failed;
 use crate::states::stopping::Stopping;
+use crate::states::install_package::Installing;
+use kubelet::container::ContainerKey;
+use log::{debug, info, warn, error};
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::time::timeout;
 
 #[derive(Default, Debug, TransitionTo)]
-#[transition_to(Stopping, Failed)]
+#[transition_to(Stopping, Failed, Running, Installing)]
 pub struct Running;
 
 
 #[async_trait::async_trait]
 impl State<PodState> for Running {
     async fn next(self: Box<Self>, pod_state: &mut PodState, _pod: &Pod) -> Transition<PodState> {
-        for i in 1..8 {
-            tokio::time::delay_for(std::time::Duration::from_secs(2)).await;
-            println!("running");
+        let mut changed = Arc::clone(&pod_state.pod_changed);
+        while let Ok(_) = timeout(Duration::from_millis(100), changed.notified()).await {
+            debug!("drained a waiting notification");
         }
-        Transition::next(self, Stopping)
+        debug!("done draining");
+
+        loop {
+            println!("running");
+            tokio::select! {
+                _ = changed.notified() => {
+                    debug!("pod changed");
+                    break;
+                },
+                _ = tokio::time::delay_for(std::time::Duration::from_secs(10))  => {
+                    debug!("timer expired");
+                    continue;
+                }
+            }
+        }
+        Transition::next(self, Installing{
+            download_directory: pod_state.download_directory.clone(),
+            parcel_directory: pod_state.parcel_directory.clone(),
+            package: pod_state.package.clone()
+        })
     }
 
     async fn json_status(
@@ -25,6 +50,6 @@ impl State<PodState> for Running {
         _pod_state: &mut PodState,
         _pod: &Pod,
     ) -> anyhow::Result<serde_json::Value> {
-        make_status(Phase::Pending, &"status:running")
+        make_status(Phase::Running, &"status:running")
     }
 }

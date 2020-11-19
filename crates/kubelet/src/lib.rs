@@ -11,6 +11,7 @@
 //! use kubelet::pod::Pod;
 //! use kubelet::provider::Provider;
 //! use kubelet::state::{Stub, AsyncDrop};
+//! use std::sync::Arc;
 //!
 //! // Create some type that will act as your provider
 //! struct MyProvider;
@@ -31,7 +32,7 @@
 //!     type TerminatedState = Stub;
 //!     type PodState = PodState;
 //!    
-//!     async fn initialize_pod_state(&self, _pod: &Pod) -> anyhow::Result<Self::PodState> {
+//!     async fn initialize_pod_state(&self, _pod: &Pod, pod_changed: Arc<Notify>) -> anyhow::Result<Self::PodState> {
 //!         Ok(PodState)
 //!     }
 //!

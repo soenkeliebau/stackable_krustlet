@@ -45,7 +45,7 @@ use kubelet::provider::{Provider, ProviderError};
 use kubelet::store::Store;
 use kubelet::volume::Ref;
 use tokio::sync::mpsc::{self, Receiver, Sender};
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, Notify};
 use wasi_runtime::Runtime;
 
 mod states;
@@ -139,7 +139,7 @@ impl Provider for WasiProvider {
         Ok(())
     }
 
-    async fn initialize_pod_state(&self, pod: &Pod) -> anyhow::Result<Self::PodState> {
+    async fn initialize_pod_state(&self, pod: &Pod, pod_changed: Arc<Notify>) -> anyhow::Result<Self::PodState> {
         let (tx, rx) = mpsc::channel(pod.all_containers().len());
         let run_context = ModuleRunContext {
             modules: Default::default(),

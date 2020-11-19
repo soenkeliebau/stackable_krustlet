@@ -43,11 +43,12 @@ impl<P: 'static + Provider + Sync + Send> Queue<P> {
         let (sender, mut receiver) = tokio::sync::mpsc::channel::<Event<KubePod>>(16);
 
         let pod_deleted = Arc::new(Notify::new());
+        let pod_changed = Arc::new(Notify::new());
 
         let pod_manifest = match initial_event {
             Event::Applied(pod) => {
                 let pod = Pod::from(pod);
-                let pod_state = self.provider.initialize_pod_state(&pod).await?;
+                let pod_state = self.provider.initialize_pod_state(&pod, Arc::clone(&pod_changed)).await?;
                 let pod_manifest = Arc::new(RwLock::new(pod));
                 tokio::spawn(start_task::<P>(
                     self.client.clone(),
@@ -64,14 +65,17 @@ impl<P: 'static + Provider + Sync + Send> Queue<P> {
             while let Some(event) = receiver.recv().await {
                 // Watch errors are handled before an event ever gets here, so it should always have
                 // a pod
+                debug!("received event: {:?}", event);
                 match event {
                     Event::Applied(pod) => {
+                        debug!("yay");
                         let pod = Pod::from(pod);
                         debug!("Pod {} applied.", pod.name());
                         if let Some(_timestamp) = pod.deletion_timestamp() {
                             pod_deleted.notify();
                         }
                         *pod_manifest.write().await = pod;
+                        pod_changed.notify();
                     }
                     Event::Deleted(pod) => {
                         // I'm not sure if this matters, we get notified of pod deletion with a

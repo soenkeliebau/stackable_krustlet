@@ -15,7 +15,11 @@ pub struct Failed {
 impl State<PodState> for Failed {
     async fn next(self: Box<Self>, pod_state: &mut PodState, _pod: &Pod) -> Transition<PodState> {
         println!("failed");
-        Transition::next(self, Installing)
+        Transition::next(self, Installing{
+            download_directory: pod_state.download_directory.clone(),
+            parcel_directory: pod_state.parcel_directory.clone(),
+            package: pod_state.package.clone()
+        })
     }
 
     async fn json_status(
@@ -23,6 +27,6 @@ impl State<PodState> for Failed {
         _pod_state: &mut PodState,
         _pod: &Pod,
     ) -> anyhow::Result<serde_json::Value> {
-        make_status(Phase::Pending, &self.message)
+        make_status(Phase::Failed, &self.message)
     }
 }

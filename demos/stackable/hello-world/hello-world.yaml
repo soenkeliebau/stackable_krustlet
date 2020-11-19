@@ -1,12 +1,21 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: zookeeper
+  name: zookeeper-prod-1
 spec:
   containers:
     - image: stackable/zookeeper:3.6.2
       imagePullPolicy: Always
       name: greet
+      volumeMounts:
+        - name: zookeeper-prod-1
+          mountPath: /etc/config
+  volumes:
+    - name: zookeeper-prod-1
+      configMap:
+        # Provide the name of the ConfigMap containing the files you want
+        # to add to the container
+        name: zookeeper-prod-1
   tolerations:
     - key: "node.kubernetes.io/network-unavailable"
       operator: "Exists"

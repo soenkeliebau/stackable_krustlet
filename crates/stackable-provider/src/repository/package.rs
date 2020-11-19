@@ -14,6 +14,16 @@ pub struct Package {
     pub version: String,
 }
 
+impl Package {
+    pub fn get_file_name(&self) -> String {
+        format!("{}.tar.gz", self.get_directory_name())
+    }
+
+    pub fn get_directory_name(&self) -> String {
+        format!("{}-{}", self.product, self.version)
+    }
+}
+
 impl TryFrom<Reference> for Package {
     type Error = StackableError;
 
@@ -24,6 +34,7 @@ impl TryFrom<Reference> for Package {
         })
     }
 }
+
 impl fmt::Display for Package {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}:{}", self.product, self.version)

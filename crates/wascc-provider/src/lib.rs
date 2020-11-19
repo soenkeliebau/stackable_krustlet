@@ -44,7 +44,7 @@ use kubelet::store::Store;
 use kubelet::volume::Ref;
 use log::{debug, info};
 use tempfile::NamedTempFile;
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, Notify};
 use wascc_fs::FileSystemProvider;
 use wascc_host::{Actor, Host, NativeCapability};
 use wascc_httpsrv::HttpServerProvider;
@@ -274,7 +274,7 @@ impl Provider for WasccProvider {
         Ok(())
     }
 
-    async fn initialize_pod_state(&self, pod: &Pod) -> anyhow::Result<Self::PodState> {
+    async fn initialize_pod_state(&self, pod: &Pod, pod_changed: Arc<Notify>) -> anyhow::Result<Self::PodState> {
         let run_context = ModuleRunContext {
             modules: Default::default(),
             volumes: Default::default(),

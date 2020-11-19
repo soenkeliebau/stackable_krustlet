@@ -6,12 +6,14 @@ use k8s_openapi::api::core::v1::{ConfigMap, EnvVarSource, Secret};
 use kube::api::Api;
 use log::{error, info};
 use thiserror::Error;
+use tokio::sync::Notify;
 
 use crate::container::Container;
 use crate::log::Sender;
 use crate::node::Builder;
 use crate::pod::Pod;
 use crate::state::{AsyncDrop, State};
+use std::sync::Arc;
 
 /// A back-end for a Kubelet.
 ///
@@ -32,6 +34,7 @@ use crate::state::{AsyncDrop, State};
 /// use kubelet::pod::Pod;
 /// use kubelet::provider::Provider;
 /// use kubelet::state::{Stub, AsyncDrop};
+/// use std::sync::Arc;
 ///
 /// struct MyProvider;
 ///
@@ -50,7 +53,7 @@ use crate::state::{AsyncDrop, State};
 ///
 ///     type PodState = PodState;
 ///    
-///     async fn initialize_pod_state(&self, _pod: &Pod) -> anyhow::Result<Self::PodState> {
+///     async fn initialize_pod_state(&self, _pod: &Pod, pod_changed: Arc<Notify>) -> anyhow::Result<Self::PodState> {
 ///         Ok(PodState)
 ///     }
 ///
@@ -78,7 +81,7 @@ pub trait Provider: Sized {
 
     /// Hook to allow provider to introduced shared state into Pod state.
     // TODO: Is there a way to provide a default implementation of this if Self::PodState: Default?
-    async fn initialize_pod_state(&self, pod: &Pod) -> anyhow::Result<Self::PodState>;
+    async fn initialize_pod_state(&self, pod: &Pod, pod_changed: Arc<Notify>) -> anyhow::Result<Self::PodState>;
 
     /// Given a Pod, get back the logs for the associated workload.
     async fn logs(

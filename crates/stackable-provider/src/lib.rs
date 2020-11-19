@@ -10,14 +10,19 @@ use crate::states::download_package::Downloading;
 use kube::{Client, Api};
 use crate::error::StackableError;
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition;
-use crate::error::StackableError::CrdMissing;
+use crate::error::StackableError::{CrdMissing, PodValidationError};
 use log::{debug, info, error};
 use std::path::PathBuf;
+use std::fs;
+use crate::repository::package::Package;
+use std::convert::TryFrom;
+use std::sync::Arc;
+use tokio::sync::Notify;
 
 pub struct StackableProvider {
     client: Client,
     parcel_directory: PathBuf,
-
+    config_directory: PathBuf,
 }
 
 pub const CRDS: &'static [&'static str] = &["repositories.stable.stackable.de"];
@@ -30,16 +35,19 @@ mod error;
 pub struct PodState {
     client: Client,
     parcel_directory: PathBuf,
+    download_directory: PathBuf,
+    config_directory: PathBuf,
     package_download_backoff_strategy: ExponentialBackoffStrategy,
+    package: Package,
+    pod_changed: Arc<Notify>,
 }
 
 impl StackableProvider {
-
-
-    pub async fn new(client: Client, parcel_directory: PathBuf) -> Result<Self, StackableError> {
+    pub async fn new(client: Client, parcel_directory: PathBuf, config_directory: PathBuf) -> Result<Self, StackableError> {
         let provider = StackableProvider {
             client,
-            parcel_directory
+            parcel_directory,
+            config_directory,
         };
         let missing_crds = provider.check_crds().await;
         if missing_crds.is_empty() {
@@ -47,11 +55,27 @@ impl StackableProvider {
             return Ok(provider);
         } else {
             debug!("Missing required CDRS");
-            return Err(CrdMissing {missing_crds});
+            return Err(CrdMissing { missing_crds });
         }
     }
 
-    async fn check_crds(&self) -> Vec<String>{
+    fn get_package(&self, pod: &Pod) -> Result<Package, StackableError> {
+        let containers = pod.containers();
+        if (containers.len().ne(&1)) {
+            let e = PodValidationError { msg: String::from("Size of containers list in PodSpec has to be exactly 1") };
+            return Err(e);
+        } else {
+            // List has exactly one value, try to parse this
+            if let Ok(Some(reference)) = containers[0].image() {
+                return Package::try_from(reference);
+            } else {
+                let e = PodValidationError { msg: String::from("Unable to get package reference from pod") };
+                return Err(e);
+            }
+        }
+    }
+
+    async fn check_crds(&self) -> Vec<String> {
         let mut missing_crds = vec![];
         let crds: Api<CustomResourceDefinition> = Api::all(self.client.clone());
 
@@ -62,10 +86,10 @@ impl StackableProvider {
                 Err(e) => {
                     error!("Missing required CRD: \"{}\"", crd);
                     missing_crds.push(String::from(*crd))
-                },
+                }
                 _ => {
                     debug!("Found registered crd: {}", crd)
-                },
+                }
             }
         }
         missing_crds
@@ -94,12 +118,27 @@ impl Provider for StackableProvider {
         Ok(())
     }
 
-    async fn initialize_pod_state(&self, pod: &Pod) -> anyhow::Result<Self::PodState> {
+    async fn initialize_pod_state(&self, pod: &Pod, pod_changed: Arc<Notify>) -> anyhow::Result<Self::PodState> {
         let parcel_directory = self.parcel_directory.clone();
+        let download_directory = parcel_directory.join("_download");
+        let config_directory = self.config_directory.clone();
+
+        let package = self.get_package(pod)?;
+        if !(&download_directory.is_dir()) {
+            fs::create_dir_all(&download_directory)?;
+        }
+        if !(&config_directory.is_dir()) {
+            fs::create_dir_all(&config_directory)?;
+        }
+
         Ok(PodState {
             client: self.client.clone(),
             parcel_directory,
-            package_download_backoff_strategy: ExponentialBackoffStrategy::default()
+            download_directory,
+            config_directory: self.config_directory.clone(),
+            package_download_backoff_strategy: ExponentialBackoffStrategy::default(),
+            package,
+            pod_changed,
         })
     }
 

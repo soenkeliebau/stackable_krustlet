@@ -14,6 +14,7 @@ use crate::repository::repository::Repository;
 use crate::error::StackableError;
 use log::{trace, debug, info, error};
 use std::fmt;
+use crate::error::StackableError::PackageNotFound;
 
 
 #[derive(Debug, Clone)]
@@ -50,16 +51,6 @@ struct StackablePackage {
     pub hashes: HashMap<String, String>,
 }
 
-impl StackablePackage {
-    pub fn get_file_name(&self) -> String {
-        format!("{}.tar.gz", self.get_directory_name())
-    }
-
-    pub fn get_directory_name(&self) -> String {
-        format!("{}-{}", self.product, self.version)
-    }
-}
-
 impl StackableRepoProvider {
     pub fn new(name: String, base_url: String) -> Result<StackableRepoProvider, StackableError> {
         let base_url = Url::parse(&base_url)?;
@@ -78,13 +69,21 @@ impl StackableRepoProvider {
         Ok(false)
     }
 
-    fn get_package(&self, package: Package) -> Result<StackablePackage, StackableError> {
-       Ok(StackablePackage{
-            product: "".to_string(),
-            version: "".to_string(),
-            link: "".to_string(),
-            hashes: Default::default()
-        })
+    async fn get_package(&mut self, package: Package) -> Result<StackablePackage, StackableError> {
+        if self.content.is_none() {
+            self.get_repo_metadata().await?;
+        }
+        if let Some(content) = &self.content {
+            let parcels = &content.parcels;
+            if let Some(product) = parcels.get(&package.product) {
+                // product exists in repo
+                if let Some(version) = product.get(&package.version) {
+                    // found our package
+                    return Ok(version.clone());
+                }
+            };
+        }
+        Err(PackageNotFound {package})
     }
 
     pub async fn download_package(&mut self, package: &Package, target_path: PathBuf) -> Result<(), StackableError> {
@@ -92,11 +91,8 @@ impl StackableRepoProvider {
             let _content = self.get_repo_metadata();
         }
 
-        return Ok(());
-        // TODO: continue implementation
-
-        let package = self.get_package(package.clone()).unwrap();
-        let download_link = Url::parse(&package.link).expect("unable to create download link");
+        let stackable_package = self.get_package(package.clone()).await?;
+        let download_link = Url::parse(&stackable_package.link).expect("unable to create download link");
         let mut response = reqwest::get(download_link).await.expect("request failed");
 
         let mut content =  Cursor::new(response.bytes().await.expect("unable to create cursor"));
@@ -133,8 +129,8 @@ impl StackableRepoProvider {
                     StackablePackage {
                         product: product.clone(),
                         version: version.version,
-                        link: "".to_string(),
-                        hashes: Default::default()
+                        link: self.resolve_url(version.path.clone())?,
+                        hashes: version.hashes.clone()
                     },
                 );
             }
@@ -163,7 +159,6 @@ impl fmt::Display for StackableRepoProvider {
     }
 }
 
-
 impl TryFrom<&Repository> for StackableRepoProvider {
     type Error = StackableError;
 
@@ -190,8 +185,6 @@ impl Hash for StackableRepoProvider {
         self.name.hash(state);
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {
