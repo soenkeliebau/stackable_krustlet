@@ -92,13 +92,13 @@ impl StackableRepoProvider {
         }
 
         let stackable_package = self.get_package(package.clone()).await?;
-        let download_link = Url::parse(&stackable_package.link).expect("unable to create download link");
-        let mut response = reqwest::get(download_link).await.expect("request failed");
+        let download_link = Url::parse(&stackable_package.link)?;
+        let mut response = reqwest::get(download_link).await?;
 
-        let mut content =  Cursor::new(response.bytes().await.expect("unable to create cursor"));
+        let mut content =  Cursor::new(response.bytes().await?);
 
-        let mut out = File::create(target_path.join(package.get_file_name())).expect("failed to create file");
-        copy(&mut content, &mut out).expect("unable to download file");
+        let mut out = File::create(target_path.join(package.get_file_name()))?;
+        copy(&mut content, &mut out)?;
         Ok(())
     }
 
