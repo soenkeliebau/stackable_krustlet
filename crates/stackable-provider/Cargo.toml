@@ -27,3 +27,4 @@ reqwest = "0.10"
 oci-distribution = { path = "../oci-distribution", version = "0.4", default-features = false }
 flate2 = "1.0"
 tar = "0.4"
+handlebars = "3.5"

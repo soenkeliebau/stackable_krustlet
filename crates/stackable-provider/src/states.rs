@@ -1,6 +1,7 @@
 pub(crate) mod download_package;
 pub(crate) mod install_package;
 pub(crate) mod create_config;
+pub(crate) mod waiting_config;
 pub(crate) mod create_service;
 pub(crate) mod download_package_backoff;
 pub(crate) mod setup_failed;

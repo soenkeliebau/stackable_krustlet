@@ -169,10 +169,8 @@ async fn start_pod_informer<P: 'static + Provider + Sync + Send>(
     signal: Arc<AtomicBool>,
 ) {
     let node_selector = format!("spec.nodeName={}", node_name);
-    let label_selector = Some(String::from("status=ready"));
     let params = ListParams {
         field_selector: Some(node_selector),
-        label_selector: label_selector,
         ..Default::default()
     };
     let api = Api::<KubePod>::all(client);

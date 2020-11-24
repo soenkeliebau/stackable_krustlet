@@ -10,16 +10,34 @@ use log::{debug, info, warn, error};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::timeout;
+use std::process::Child;
+use crate::error::StackableError;
 
-#[derive(Default, Debug, TransitionTo)]
+#[derive(Debug, TransitionTo)]
 #[transition_to(Stopping, Failed, Running, Installing)]
-pub struct Running;
+pub struct Running {
+    pub process_handle: Option<Child>,
+}
 
+impl Running {
+    fn take_handle(&mut self) -> Child {
+        debug!("testing");
+        let mut handle = std::mem::replace(&mut self.process_handle, None);
+        handle.unwrap()
+    }
+}
 
 #[async_trait::async_trait]
 impl State<PodState> for Running {
-    async fn next(self: Box<Self>, pod_state: &mut PodState, _pod: &Pod) -> Transition<PodState> {
+    async fn next(mut self: Box<Self>, pod_state: &mut PodState, _pod: &Pod) -> Transition<PodState> {
+
+        debug!("waiting");
+//        &self.wait();
+//        warn!("process ended!");
+//        Transition::next(self, Failed{ message: "process ended".to_string() })
         let mut changed = Arc::clone(&pod_state.pod_changed);
+        //let mut handle = &self.take_handle();
+        let mut handle = std::mem::replace(&mut self.process_handle, None).unwrap();
         while let Ok(_) = timeout(Duration::from_millis(100), changed.notified()).await {
             debug!("drained a waiting notification");
         }
@@ -32,10 +50,17 @@ impl State<PodState> for Running {
                     debug!("pod changed");
                     break;
                 },
-                _ = tokio::time::delay_for(std::time::Duration::from_secs(10))  => {
+                _ = tokio::time::delay_for(std::time::Duration::from_secs(1))  => {
                     debug!("timer expired");
-                    continue;
                 }
+            }
+            match handle.try_wait() {
+                Ok(None) => debug!("Still running"),
+                _ => {
+                    error!("died");
+                    return Transition::next(self, Failed { message: "process died".to_string() })
+                }
+
             }
         }
         Transition::next(self, Installing{
@@ -43,7 +68,7 @@ impl State<PodState> for Running {
             parcel_directory: pod_state.parcel_directory.clone(),
             package: pod_state.package.clone()
         })
-    }
+   }
 
     async fn json_status(
         &self,

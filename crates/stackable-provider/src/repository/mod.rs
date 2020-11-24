@@ -6,7 +6,6 @@ use kube::api::ListParams;
 use std::convert::TryFrom;
 use log::{trace, debug, info, error};
 use crate::repository::repository::Repository;
-
 pub mod package;
 pub mod repository;
 pub mod stackablerepository;

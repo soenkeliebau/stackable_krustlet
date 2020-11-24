@@ -18,6 +18,7 @@ use crate::repository::package::Package;
 use std::convert::TryFrom;
 use std::sync::Arc;
 use tokio::sync::Notify;
+use std::process::Child;
 
 pub struct StackableProvider {
     client: Client,
@@ -40,6 +41,15 @@ pub struct PodState {
     package_download_backoff_strategy: ExponentialBackoffStrategy,
     package: Package,
     pod_changed: Arc<Notify>,
+    process_handle: Option<Child>,
+}
+
+impl PodState {
+    pub fn take_handle(mut self) -> Option<Child> {
+        let result = self.process_handle;
+        self.process_handle = None;
+        result
+    }
 }
 
 impl StackableProvider {
@@ -139,6 +149,7 @@ impl Provider for StackableProvider {
             package_download_backoff_strategy: ExponentialBackoffStrategy::default(),
             package,
             pod_changed,
+            process_handle: None,
         })
     }
 

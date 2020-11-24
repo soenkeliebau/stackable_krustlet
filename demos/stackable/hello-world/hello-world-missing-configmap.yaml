@@ -1,28 +1,23 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: zookeeper-prod-1
+  name: zookeeper-prod-1-missing
   labels:
     status: ready
 spec:
   containers:
-    - image: stackable/zookeeper:v3_6_2
+    - image: stackable/zookeeper:3.6.2
       imagePullPolicy: Always
-      command:
-        - "bin/zkServer.sh"
-        - "--config"
-        - "{{ configroot }}"
-        - "start-foreground"
       name: greet
       volumeMounts:
         - name: zookeeper-prod-1
-          mountPath: /
+          mountPath: /etc/config
   volumes:
     - name: zookeeper-prod-1
       configMap:
         # Provide the name of the ConfigMap containing the files you want
         # to add to the container
-        name: zookeeper-prod-1
+        name: zookeeper-prod-1-missing
   tolerations:
     - key: "node.kubernetes.io/network-unavailable"
       operator: "Exists"
